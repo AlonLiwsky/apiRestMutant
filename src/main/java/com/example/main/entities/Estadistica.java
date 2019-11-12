@@ -18,7 +18,11 @@ public class Estadistica {
 	}
 	
 	public float ratio() {
-		return (float)this.mutantDna/this.humanDna;		
+		if(this.humanDna == 0) {
+			return 0;
+		}else {
+			return (float) this.mutantDna/this.humanDna;
+		}				
 	}
 	
 	
