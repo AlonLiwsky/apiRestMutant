@@ -1,14 +1,10 @@
 package com.example.main;
 
-import static org.junit.Assert.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-import java.util.ArrayList;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.CoreMatchers.is;
@@ -31,6 +27,7 @@ import com.example.main.dtos.ListadoDTO;
 import com.example.main.entities.Estadistica;
 import com.example.main.entities.Humano;
 import com.example.main.services.HumanoService;
+import com.example.main.services.StatsService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @SpringBootTest
@@ -39,10 +36,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 class ApiRestApplicationTests {
 
-	private static final String BASE_URL = "/api/v1/mutant/";
+	private static final String BASE_URL = "/api/v1/";
 
 	@Autowired
 	private HumanoService humanoService;
+
+	@Autowired
+	private StatsService statsService;
 
 	@Autowired
 	JdbcTemplate jdbcTemplate;
@@ -65,7 +65,7 @@ class ApiRestApplicationTests {
 		assertThat(mvc).isNotNull();
 	}
 
-	// ControllerTests
+	// HumanoControllerTests
 	@Test
 	public void shouldValidateMutant() throws Exception {
 
@@ -77,10 +77,9 @@ class ApiRestApplicationTests {
 
 		invokeGetStats().andExpect(status().isOk())
 				.andExpect(content().string("'count_mutant_dna': 1, 'count_human_dna':1, 'ratio': 1.0")).andReturn();
-		
-//		invokeGetOne(1).andExpect(status().isOk()).andExpect(jsonPath("$.mutante", is(true)));
+
 	}
-	
+
 	@Test
 	public void shouldNotValidateMutant() throws Exception {
 
@@ -89,44 +88,40 @@ class ApiRestApplicationTests {
 
 		MvcResult results = invokeIsMutant(humanoJson).andExpect(status().isForbidden())
 				.andExpect(jsonPath("$.mutant", is(false))).andReturn();
-		
+
 		invokeGetStats().andExpect(status().isOk())
 				.andExpect(content().string("'count_mutant_dna': 0, 'count_human_dna':1, 'ratio': 0.0")).andReturn();
 
-//		invokeGetOne(1).andExpect(status().isOk()).andExpect(jsonPath("$.mutante", is(false)));
 	}
 
 	@Test
 	public void shouldReturn400() throws Exception {
 
-		String humanoJson = "{\n" + "\"dna\":[\"ATGCGA\",\"TTATGT\",\"AGAAGG\",\"CTCCTA\",\"TCACTG\"]\n"
-				+ "}";
+		String humanoJson = "{\n" + "\"dna\":[\"ATGCGA\",\"TTATGT\",\"AGAAGG\",\"CTCCTA\",\"TCACTG\"]\n" + "}";
 
 		MvcResult results = invokeIsMutant(humanoJson).andExpect(status().isBadRequest())
-				.andExpect(content().string("'Error': 'La matriz no cumple con NxN'")).andReturn();	
-		
-		humanoJson = "{\n" + "\"pedro\":[\"ATGCGA\",\"CGGTGC\",\"TTATGT\",\"AGAAGG\",\"CTCCTA\",\"TCACTG\"]\n"
-				+ "}";
+				.andExpect(content().string("'Error': 'La matriz no cumple con NxN'")).andReturn();
+
+		humanoJson = "{\n" + "\"pedro\":[\"ATGCGA\",\"CGGTGC\",\"TTATGT\",\"AGAAGG\",\"CTCCTA\",\"TCACTG\"]\n" + "}";
 
 		invokeIsMutant(humanoJson).andExpect(status().isBadRequest())
-				.andExpect(content().string("'Error': 'El formato de la matriz no es valido, asegurese de nombrar la variable dna'")).andReturn();	
+				.andExpect(content().string(
+						"'Error': 'El formato de la matriz no es valido, asegurese de nombrar la variable dna'"))
+				.andReturn();
 	}
-	
+
+	private ResultActions invokeIsMutant(String humanoJson) throws Exception {
+		return mvc.perform(post(BASE_URL + "mutant/").content(humanoJson).contentType(MediaType.APPLICATION_JSON)
+				.accept(MediaType.APPLICATION_JSON));
+	}
+
+
+	// StatsControllerTests
 	@Test
 	public void shouldGetStats() throws Exception {
 
 		MvcResult results = invokeGetStats().andExpect(status().isOk())
 				.andExpect(content().string("'count_mutant_dna': 0, 'count_human_dna':0, 'ratio': NaN")).andReturn();
-
-	}
-
-	private ResultActions invokeIsMutant(String humanoJson) throws Exception {
-		return mvc.perform(post(BASE_URL).content(humanoJson).contentType(MediaType.APPLICATION_JSON)
-				.accept(MediaType.APPLICATION_JSON));
-	}
-
-	private ResultActions invokeGetOne(int id) throws Exception {
-		return mvc.perform(get(BASE_URL + id).accept(MediaType.APPLICATION_JSON));
 	}
 
 	private ResultActions invokeGetStats() throws Exception {
@@ -134,31 +129,27 @@ class ApiRestApplicationTests {
 	}
 
 	
-	// ServiceTests
+	// HumanoServiceTests
+	@Test
+	public void testValidarAdn() {
+		String[] dna = { "AAAAGA", "ACGGTC", "TTGTGT", "AGAAGG", "CAGCTA", "TCACTG" };
+		ListadoDTO listaDTO = new ListadoDTO();
+		listaDTO.dna = dna;
+
+		assertThat(humanoService.isMutant(listaDTO)).isTrue();
+	}
+
+	
+	// StatsServiceTest
 	@Test
 	public void testGetStats() {
-		Estadistica stats = humanoService.getStats();
+		Estadistica stats = statsService.getStats();
 		assertThat(stats.getMutantDna() <= stats.getHumanDna());
 		assertThat(stats.ratio()).isNotNull();
 	}
+
 	
-	@Test
-	public void testValidarAdn() {
-		String[] dna = {
-	            "AAAAGA",
-	            "ACGGTC",
-	            "TTGTGT",
-	            "AGAAGG",
-	            "CAGCTA",
-	            "TCACTG"};
-		ListadoDTO listaDTO = new ListadoDTO();
-		listaDTO.dna = dna;
-		
-		assertThat(humanoService.isMutant(listaDTO)).isTrue();
-	}
-	
-	
-	//Entity
+	// Entity
 	@Test
 	public void testSetMutante() {
 		Humano hum = new Humano();

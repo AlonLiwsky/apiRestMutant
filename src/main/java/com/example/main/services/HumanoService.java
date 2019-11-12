@@ -1,20 +1,11 @@
 package com.example.main.services;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Optional;
-
 import org.springframework.stereotype.Service;
 
-import com.example.main.dtos.HumanoDTO;
 import com.example.main.dtos.ListadoDTO;
-import com.example.main.entities.Estadistica;
 import com.example.main.entities.Humano;
 import com.example.main.repositories.HumanoRepository;
-import com.sun.xml.bind.v2.runtime.unmarshaller.XsiNilLoader.Array;
 
 @Service
 public class HumanoService {
@@ -25,17 +16,7 @@ public class HumanoService {
 		this.humanoRepository = humanoRepository;
 	}
 
-	public Estadistica getStats() {
-		List<Humano> humanos = humanoRepository.findAll();
-		int mutantes = 0;
-		for (Humano humano : humanos) {
-			if (humano.isMutant()) {
-				mutantes++;
-			}
-		} 
-
-		return new Estadistica(mutantes, humanos.size());
-	}
+	
 
 	public boolean isMutant(ListadoDTO ADN) {
 		// Se utiliza la clase ListadoDTO a modo de wrapper
